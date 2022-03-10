@@ -19,6 +19,8 @@
 #include "game.h"
 #include "audio_manager.h"
 #include "enemy_game_object.h"
+#include "shield_game_object.h"
+#include "game_object.h"
 
 #include "bin/path_config.h"
 #include "glm/ext.hpp"
@@ -37,10 +39,13 @@ const unsigned int window_width_g = 800;
 const unsigned int window_height_g = 600;
 const glm::vec3 viewport_background_color_g(0.0, 0.0, 1.0);
 
+
 bool game_over = false;
 bool bulletExists = false;
 unsigned int audio_loops = 0;
 double lastBulletFired = -1.0;
+unsigned int numNonPlayerObjects = 11;
+unsigned int numPowerUps = 2;
 
 //Camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -131,8 +136,12 @@ void Game::Setup(void)
     game_objects_.push_back(new EnemyGameObject(glm::vec3(3.0f, -2.0f, 0.0f), tex_[2], size_, true, "patrolling"));
     game_objects_.push_back(new EnemyGameObject(glm::vec3(0.8f, 1.5f, 0.0f), tex_[2], size_, true, "patrolling"));
 
-    //Blades
+    // Blades as children of PlayerGameObject
     game_objects_[0]->AddChild(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[4], size_, false));
+
+    // Shield power ups
+    game_objects_.push_back(new GameObject(glm::vec3(3.0f, 1.0f, 0.0f), tex_[7], size_, false));
+    game_objects_.push_back(new GameObject(glm::vec3(-2.0f, -1.0f, 0.0f), tex_[7], size_, false));
 
     // Setup background
     // Origin
@@ -309,6 +318,8 @@ void Game::SetAllTextures(void)
     SetTexture(tex_[3], (resources_directory_g + std::string("/textures/dune.png")).c_str());
     SetTexture(tex_[4], (resources_directory_g + std::string("/textures/blade.png")).c_str());
     SetTexture(tex_[5], (resources_directory_g + std::string("/textures/bullet.png")).c_str());
+    SetTexture(tex_[6], (resources_directory_g + std::string("/textures/orb.png")).c_str());
+    SetTexture(tex_[7], (resources_directory_g + std::string("/textures/shield.png")).c_str());
     glBindTexture(GL_TEXTURE_2D, tex_[0]);
 }
 
@@ -460,11 +471,11 @@ void Game::Update(double delta_time) {
         int upperbound;
         if (bulletExists) {
             lowerbound = 1;
-            upperbound = game_objects_.size() - 9;
+            upperbound = game_objects_.size() - numNonPlayerObjects;
         }
         else {
             lowerbound = 0;
-            upperbound = game_objects_.size() - 9;
+            upperbound = game_objects_.size() - numNonPlayerObjects;
         }
 
         // Check for collision with other game objects
@@ -487,6 +498,7 @@ void Game::Update(double delta_time) {
                 PlayExplosionAudio();
             }
 
+
             // Player/Enemy interaction (Moving/Patrolling)
             if (i == 0 && j > lowerbound && j < upperbound) {
                 if (distance < 1.5f) {
@@ -504,6 +516,33 @@ void Game::Update(double delta_time) {
                     other_game_object->SetState("patrolling");
                 }
             }
+
+            // Checking for collision of power up
+            if (i == 0 && j >= game_objects_.size() - numNonPlayerObjects && j < game_objects_.size() - numNonPlayerObjects + numPowerUps) {
+                if (distance < 1.5f) {
+
+                    glm::vec3 curpos = current_game_object->GetPosition();
+                    
+                    game_objects_.erase(game_objects_.begin() + j); // Erases the power up
+                    numNonPlayerObjects--;
+                    numPowerUps--;
+
+                    //GameObject* shield1 = new GameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false);
+                    //shield1->SetScale(0.25f);
+                   // current_game_object->AddShield(shield1);
+
+                    current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false));
+                    current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x + 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+                    current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+
+                    for (int k = 0; k < 3; k++) {
+                        GameObject* shield = current_game_object->GetShields()[k];
+                        shield->SetScale(0.25f);
+                        shield->Update(0.0f);
+                    }
+                }
+            }
+
         }
 
         // Render game object
@@ -511,9 +550,19 @@ void Game::Update(double delta_time) {
 
         // 'Parent' Main sprite object
         if (i == 0) {
+            // Render the blades
             GameObject* blades = current_game_object->GetChildren()[0];
             blades->SetAngle(blades->GetAngle() + 0.3f);
             blades->Render(shader_, current_game_object->GetTransformationMatrix());
+
+            // Render the power ups (if exists)
+            if (!current_game_object->GetShields().empty()) {
+                for (int k = 0; k < current_game_object->GetShields().size(); k++) {
+                    GameObject* shield = current_game_object->GetShields()[k];
+                    //blades->SetAngle(blades->GetAngle() + 0.3f);
+                    shield->Render(shader_);
+                }
+            }
         }
 
         float t = 1.0;

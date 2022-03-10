@@ -58,11 +58,7 @@ void GameObject::Render(Shader &shader) {
     glm::mat4 transformation_matrix = translation_matrix * rotation_matrix * scaling_matrix;
     //std::cout << "trans matrix: " << glm::to_string(transformation_matrix) << std::endl;
     transformation_matrix_ = transformation_matrix;
-    /*
-    for (GameObject* child: children_) {
-        child->Render(shader, transformation_matrix);
-    }
-    */
+
     // Set the transformation matrix in the shader
     shader.SetUniformMat4("transformation_matrix", transformation_matrix);
 

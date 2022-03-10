@@ -13,6 +13,7 @@ set(HDRS
     shader.h
     audio_manager.h
     enemy_game_object.h
+    shield_game_object.h
 )
  
 set(SRCS
@@ -24,6 +25,7 @@ set(SRCS
     shader.cpp
     audio_manager.cpp
     enemy_game_object.cpp
+    shield_game_object.cpp
     vertex_shader.glsl
     fragment_shader.glsl
 )

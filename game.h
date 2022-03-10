@@ -40,7 +40,7 @@ namespace game {
             int size_;
 
             // References to textures
-#define NUM_TEXTURES 6
+#define NUM_TEXTURES 8
             GLuint tex_[NUM_TEXTURES];
 
             // List of game objects

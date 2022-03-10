@@ -5,9 +5,10 @@
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <string>
+#include <vector>
 
 #include "shader.h"
-#include <vector>
+
 
 namespace game {
 
@@ -37,6 +38,7 @@ namespace game {
             inline float GetAngle(void) { return angle_; }
             inline glm::mat4& GetTransformationMatrix(void) { return transformation_matrix_; }
             inline std::vector<GameObject*> GetChildren(void) { return children_; }
+            inline std::vector<GameObject*> GetShields(void) { return shields_; }
 
             // Setters
             inline void SetPosition(const glm::vec3& position) { position_ = position; }
@@ -57,6 +59,7 @@ namespace game {
             inline void SetTransformationMatrix(const glm::mat4& matrix) { transformation_matrix_ = matrix; }
             inline void SetChildren(std::vector<GameObject*> children) { children_ = children; }
             inline void AddChild(GameObject* child) { children_.push_back(child); }
+            inline void AddShield(GameObject* shield) { shields_.push_back(shield); }
 
 
         protected:
@@ -68,6 +71,7 @@ namespace game {
             glm::vec3 velocity_;
             glm::mat4 transformation_matrix_;
             std::vector<GameObject*> children_;
+            std::vector<GameObject*> shields_;
 
             // Object's details
             GLint num_elements_;
