@@ -37,6 +37,9 @@ namespace game {
             inline std::string GetState(void) { return state_; }
             inline float GetAngle(void) { return angle_; }
             inline glm::mat4& GetTransformationMatrix(void) { return transformation_matrix_; }
+            inline glm::mat4& GetRotationMatrix(void) { return rotation_matrix_; }
+            inline glm::mat4& GetTranslationMatrix(void) { return translation_matrix_; }
+            inline glm::mat4& GetMovementMatrix(void) { return movement_matrix_; }
             inline std::vector<GameObject*> GetChildren(void) { return children_; }
             inline std::vector<GameObject*> GetShields(void) { return shields_; }
 
@@ -57,9 +60,13 @@ namespace game {
             inline void SetCollidable(bool collidable) { collidable_ = collidable; }
             inline void SetAngle(float angle) { angle_ = angle; }
             inline void SetTransformationMatrix(const glm::mat4& matrix) { transformation_matrix_ = matrix; }
+            inline void SetRotationMatrix(const glm::mat4& matrix) { rotation_matrix_ = matrix; }
+            inline void SetMovementMatrix(const glm::mat4& matrix) { movement_matrix_ = matrix; }
             inline void SetChildren(std::vector<GameObject*> children) { children_ = children; }
             inline void AddChild(GameObject* child) { children_.push_back(child); }
             inline void AddShield(GameObject* shield) { shields_.push_back(shield); }
+
+            inline void RemoveShields() { shields_.clear(); }
 
 
         protected:
@@ -70,6 +77,9 @@ namespace game {
             float angle_;
             glm::vec3 velocity_;
             glm::mat4 transformation_matrix_;
+            glm::mat4 rotation_matrix_;
+            glm::mat4 translation_matrix_;
+            glm::mat4 movement_matrix_;
             std::vector<GameObject*> children_;
             std::vector<GameObject*> shields_;
 

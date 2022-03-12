@@ -42,10 +42,12 @@ const glm::vec3 viewport_background_color_g(0.0, 0.0, 1.0);
 
 bool game_over = false;
 bool bulletExists = false;
+bool shielded = false;
 unsigned int audio_loops = 0;
 double lastBulletFired = -1.0;
-unsigned int numNonPlayerObjects = 11;
+unsigned int numNonCollidableObjects = 11;
 unsigned int numPowerUps = 2;
+unsigned int numEnemies = 3;
 
 //Camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -471,11 +473,11 @@ void Game::Update(double delta_time) {
         int upperbound;
         if (bulletExists) {
             lowerbound = 1;
-            upperbound = game_objects_.size() - numNonPlayerObjects;
+            upperbound = game_objects_.size() - numNonCollidableObjects;
         }
         else {
             lowerbound = 0;
-            upperbound = game_objects_.size() - numNonPlayerObjects;
+            upperbound = game_objects_.size() - numNonCollidableObjects;
         }
 
         // Check for collision with other game objects
@@ -485,17 +487,28 @@ void Game::Update(double delta_time) {
             // Collision detection between player and enemies
             float distance = glm::length(current_game_object->GetPosition() - other_game_object->GetPosition());
             if (distance < 0.5f && current_game_object->GetCollidable() == true && other_game_object->GetCollidable() == true) {
-                // This is where you would perform collision response between objects
-                std::cout << "Explode";
-                game_over = true;
-                SetTexture(tex_[0], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Player
-                SetTexture(tex_[1], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 1
-                SetTexture(tex_[2], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 2
+                if (!shielded && i==0) {
+                    std::cout << "Explode";
+                    game_over = true;
+                    SetTexture(tex_[0], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Player
+                    SetTexture(tex_[1], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 1
+                    SetTexture(tex_[2], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 2
 
-                current_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-                other_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-                // Add the sound
-                PlayExplosionAudio();
+                    current_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+                    other_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+                    // Add the sound
+                    PlayExplosionAudio();
+                }
+                else { // Shielded
+                    if (i == 0) {
+                        game_objects_.erase(game_objects_.begin() + j);
+                        current_game_object->RemoveShields();
+                        shielded = false;
+                        numEnemies--;
+                    }
+                }
+                // This is where you would perform collision response between objects
+                
             }
 
 
@@ -518,27 +531,28 @@ void Game::Update(double delta_time) {
             }
 
             // Checking for collision of power up
-            if (i == 0 && j >= game_objects_.size() - numNonPlayerObjects && j < game_objects_.size() - numNonPlayerObjects + numPowerUps) {
+            if (i == 0 && j > numEnemies && j < game_objects_.size() - numNonCollidableObjects + numPowerUps) {
                 if (distance < 1.5f) {
-
+                    std::cout << "collided with shield" << std::endl;
                     glm::vec3 curpos = current_game_object->GetPosition();
                     
                     game_objects_.erase(game_objects_.begin() + j); // Erases the power up
-                    numNonPlayerObjects--;
-                    numPowerUps--;
 
-                    //GameObject* shield1 = new GameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false);
-                    //shield1->SetScale(0.25f);
-                   // current_game_object->AddShield(shield1);
+                    if (!shielded) {
+                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false));
+                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x + 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
 
-                    current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false));
-                    current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x + 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
-                    current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
-
-                    for (int k = 0; k < 3; k++) {
-                        GameObject* shield = current_game_object->GetShields()[k];
-                        shield->SetScale(0.25f);
-                        shield->Update(0.0f);
+                        for (int k = 0; k < current_game_object->GetShields().size(); k++) {
+                            GameObject* shield = current_game_object->GetShields()[k];
+                            shield->SetScale(0.25f);
+                        }
+                        shielded = true;
+                        numPowerUps--;
+                        numNonCollidableObjects--;
                     }
                 }
             }
@@ -555,12 +569,20 @@ void Game::Update(double delta_time) {
             blades->SetAngle(blades->GetAngle() + 0.3f);
             blades->Render(shader_, current_game_object->GetTransformationMatrix());
 
-            // Render the power ups (if exists)
+            // Render the shields (if exists)
             if (!current_game_object->GetShields().empty()) {
                 for (int k = 0; k < current_game_object->GetShields().size(); k++) {
                     GameObject* shield = current_game_object->GetShields()[k];
-                    //blades->SetAngle(blades->GetAngle() + 0.3f);
-                    shield->Render(shader_);
+                    float lastTime = glfwGetTime();
+                    shield->SetVelocity(glm::vec3(glm::cos(lastTime+k), glm::sin(lastTime+k), 0.0f));
+                    //std::cout << "shield velocity: " << glm::to_string(shield->GetVelocity()) << std::endl;
+                    shield->Update(delta_time);
+
+                    glm::mat4 around = glm::translate(glm::mat4(1.0f), shield->GetVelocity());
+                    //glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), shield->GetPosition());
+                    glm::mat4 scaling_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(shield->GetScale(), shield->GetScale(), 1.0));
+
+                    shield->Render(shader_, current_game_object->GetMovementMatrix() * around * scaling_matrix);
                 }
             }
         }
@@ -592,6 +614,7 @@ void Game::Update(double delta_time) {
                 game_objects_.erase(game_objects_.begin() + 1);
                 lastBulletFired = -1.5;
                 bulletExists = false;
+                numEnemies--;
             }
 
             // Check if it's been 1.5 seconds since last bullet was fired

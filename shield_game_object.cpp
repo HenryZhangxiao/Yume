@@ -15,12 +15,11 @@ namespace game {
 
 	// Update function for moving the player object around
 	void ShieldGameObject::Update(double delta_time) {
-
 		double lastTime = glfwGetTime();
-		SetVelocity(glm::vec3(glm::cos(lastTime), glm::sin(lastTime), 0.0f));
-
+		position_ += velocity_ * ((float)delta_time);
 		// Call the parent's update method to move the object in standard way, if desired
-		GameObject::Update(delta_time);
+		//GameObject::Update(delta_time);
+
 	}
 
 } // namespace game
