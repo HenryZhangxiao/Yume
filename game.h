@@ -40,7 +40,7 @@ namespace game {
             int size_;
 
             // References to textures
-#define NUM_TEXTURES 8
+#define NUM_TEXTURES 9
             GLuint tex_[NUM_TEXTURES];
 
             // List of game objects
@@ -73,6 +73,7 @@ namespace game {
             void createShields(glm::vec3 curpos);
 
             void renderShields(double delta_time);
+
 
     }; // class Game
 

@@ -6,7 +6,7 @@
 
 namespace game {
 
-GameObject::GameObject(const glm::vec3 &position, GLuint texture, GLint num_elements, bool collidable) 
+GameObject::GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable)
 {
     // Initialize all attributes
     position_ = position;
@@ -16,10 +16,23 @@ GameObject::GameObject(const glm::vec3 &position, GLuint texture, GLint num_elem
     texture_ = texture;
     collidable_ = collidable;
     angle_ = 0.0f;
-
+    mass_ = 0.0f;
 }
 
-GameObject::GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, std::string state)
+GameObject::GameObject(const glm::vec3 &position, GLuint texture, GLint num_elements, bool collidable, float mass) 
+{
+    // Initialize all attributes
+    position_ = position;
+    scale_ = 1.0;
+    velocity_ = glm::vec3(0.0f, 0.0f, 0.0f); // Starts out stationary
+    num_elements_ = num_elements;
+    texture_ = texture;
+    collidable_ = collidable;
+    angle_ = 0.0f;
+    mass_ = mass;
+}
+
+GameObject::GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, float mass, std::string state)
 {
     // Initialize all attributes
     position_ = position;
@@ -30,6 +43,7 @@ GameObject::GameObject(const glm::vec3& position, GLuint texture, GLint num_elem
     collidable_ = collidable;
     state_ = state;
     angle_ = 0.0f;
+    mass_ = mass;
 }
 
 

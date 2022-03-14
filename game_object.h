@@ -20,8 +20,9 @@ namespace game {
 
         public:
             // Constructor
-            GameObject(const glm::vec3 &position, GLuint texture, GLint num_elements, bool collidable);
-            GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, std::string state);
+            GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable);
+            GameObject(const glm::vec3 &position, GLuint texture, GLint num_elements, bool collidable, float mass);
+            GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, float mass, std::string state);
             // Update the GameObject's state. Can be overriden for children
             virtual void Update(double delta_time);
 
@@ -32,6 +33,7 @@ namespace game {
             // Getters
             inline glm::vec3& GetPosition(void) { return position_; }
             inline float GetScale(void) { return scale_; }
+            inline float GetMass(void) { return mass_; }
             inline glm::vec3& GetVelocity(void) { return velocity_; }
             inline bool GetCollidable(void) { return collidable_; }
             inline std::string GetState(void) { return state_; }
@@ -60,6 +62,7 @@ namespace game {
             inline void SetVelocity(const glm::vec3& velocity, bool override) { velocity_ = velocity; }
             inline void SetCollidable(bool collidable) { collidable_ = collidable; }
             inline void SetAngle(float angle) { angle_ = angle; }
+            inline void SetMass(float mass) { mass_ = mass; }
             inline void SetTransformationMatrix(const glm::mat4& matrix) { transformation_matrix_ = matrix; }
             inline void SetRotationMatrix(const glm::mat4& matrix) { rotation_matrix_ = matrix; }
             inline void SetMovementMatrix(const glm::mat4& matrix) { movement_matrix_ = matrix; }
@@ -78,6 +81,7 @@ namespace game {
             glm::vec3 position_;
             float scale_;
             float angle_;
+            float mass_;
             glm::vec3 velocity_;
             glm::mat4 transformation_matrix_;
             glm::mat4 rotation_matrix_;

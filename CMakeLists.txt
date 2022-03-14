@@ -14,6 +14,7 @@ set(HDRS
     audio_manager.h
     enemy_game_object.h
     shield_game_object.h
+    buoy_game_object.h
 )
  
 set(SRCS
@@ -26,6 +27,7 @@ set(SRCS
     audio_manager.cpp
     enemy_game_object.cpp
     shield_game_object.cpp
+    buoy_game_object.cpp
     vertex_shader.glsl
     fragment_shader.glsl
 )

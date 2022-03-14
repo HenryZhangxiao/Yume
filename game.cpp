@@ -21,6 +21,7 @@
 #include "enemy_game_object.h"
 #include "shield_game_object.h"
 #include "game_object.h"
+#include "buoy_game_object.h"
 
 #include "bin/path_config.h"
 #include "glm/ext.hpp"
@@ -46,9 +47,10 @@ bool shielded = false;
 unsigned int audio_loops = 0;
 double lastBulletFired = -1.0;
 float timeUntilBulletHitsEnemy = 1.0f;
-unsigned int numNonCollidableObjects = 11;
+unsigned int numNonCollidableObjects = 13;
 unsigned int numPowerUps = 2;
 unsigned int numEnemies = 3;
+unsigned int numBuoys = 2;
 
 //Camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -132,18 +134,23 @@ void Game::Setup(void)
     // Setup the player object (position, texture, vertex count)
     // Note that, in this specific implementation, the player object should always be the first object in the game object vector 
     game_objects_.push_back(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[0], size_, true));
+    game_objects_[0]->SetMass(10.0f);
 
     // Blades as children of PlayerGameObject
     game_objects_[0]->AddChild(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[4], size_, false));
 
     // Enemies
-    game_objects_.push_back(new EnemyGameObject(glm::vec3(-3.0f, 2.0f, 0.0f), tex_[2], size_, true, "patrolling"));
-    game_objects_.push_back(new EnemyGameObject(glm::vec3(3.0f, -2.0f, 0.0f), tex_[2], size_, true, "patrolling"));
-    game_objects_.push_back(new EnemyGameObject(glm::vec3(0.8f, 1.5f, 0.0f), tex_[2], size_, true, "patrolling"));
+    game_objects_.push_back(new EnemyGameObject(glm::vec3(-3.0f, 2.0f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
+    game_objects_.push_back(new EnemyGameObject(glm::vec3(3.0f, -2.0f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
+    game_objects_.push_back(new EnemyGameObject(glm::vec3(0.8f, 1.5f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
 
     // Shield power ups
     game_objects_.push_back(new GameObject(glm::vec3(3.0f, 1.0f, 0.0f), tex_[7], size_, false));
     game_objects_.push_back(new GameObject(glm::vec3(-2.0f, -1.0f, 0.0f), tex_[7], size_, false));
+
+    // Buoys
+    game_objects_.push_back(new BuoyGameObject(glm::vec3(2.0f, 0.0f, 0.0f), tex_[8], size_, true, 10.0f));
+    game_objects_.push_back(new BuoyGameObject(glm::vec3(-2.0f, 1.0f, 0.0f), tex_[8], size_, true, 20.0f));
 
     // Setup background
     // Origin
@@ -315,6 +322,7 @@ void Game::SetAllTextures(void)
     SetTexture(tex_[5], (resources_directory_g + std::string("/textures/bullet.png")).c_str());
     SetTexture(tex_[6], (resources_directory_g + std::string("/textures/orb.png")).c_str());
     SetTexture(tex_[7], (resources_directory_g + std::string("/textures/shield.png")).c_str());
+    SetTexture(tex_[8], (resources_directory_g + std::string("/textures/donut.png")).c_str());
     glBindTexture(GL_TEXTURE_2D, tex_[0]);
 }
 
@@ -364,8 +372,6 @@ void Game::Controls(void) {
             glm::vec3 bulletVelocity = glm::vec3(8 * glm::cos(glm::radians(angle)), 8 * glm::sin(glm::radians(angle)), 0.0);
             bullet->SetVelocity(bulletVelocity, true);
             bullet->SetAngle(player->GetAngle());
-            //int i = 1;
-            //auto it = game_objects_.insert(game_objects_.begin() + i, bullet);
             player->AddBullet(bullet);
             lastBulletFired = currentTime;
             bulletExists = true;
@@ -400,12 +406,12 @@ void Game::PlayExplosionAudio(void) {
         while (am.AnySoundIsPlaying()) {
             ;
         }
-        audio_loops++;
+        //audio_loops++;
         // Shut down the audio manager
         am.ShutDown();
-        if (audio_loops >= 2) {
-            exit(0);
-        }
+        //if (audio_loops >= 2) {
+        //    exit(0);
+        //}
         //exit(0);
     }
     catch (std::exception& e) {
@@ -418,7 +424,6 @@ glm::vec3 Game::GetVectorBetweenTwoPoints(glm::vec3 start, glm::vec3 destination
 
     return(glm::normalize(glm::vec3(destination.x - start.x, destination.y - start.y, 0)));
 }
-
 
 std::pair<float, float> Game::RayCircleCollisionMath(glm::vec3 bulletPosition, glm::vec3 bulletVelocity, glm::vec3 circlePosition) {
     float w = bulletPosition.x; //P.x
@@ -476,6 +481,9 @@ void Game::Update(double delta_time) {
     if (game_over == false) {
         Controls();
     }
+    else {
+        exit(0);
+    }
 
     // Update and render all game objects
     for (int i = 0; i < game_objects_.size(); i++) {
@@ -509,30 +517,50 @@ void Game::Update(double delta_time) {
                 }
             }
 
-            if (distance < 0.5f && current_game_object->GetCollidable() == true && other_game_object->GetCollidable() == true) {
-                if (!shielded && i==0) { // Not shielded
-                    std::cout << "Explode";
-                    game_over = true;
-                    SetTexture(tex_[0], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Player
-                    SetTexture(tex_[1], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 1
-                    SetTexture(tex_[2], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 2
+            if (distance < 1.0f && current_game_object->GetCollidable() == true && other_game_object->GetCollidable() == true) {
+                if (typeid(*other_game_object) != typeid(BuoyGameObject)) { // Not a buoy so can apply destruction logic
+                    if (!shielded && i == 0) { // Not shielded
+                        std::cout << "Explode";
+                        game_over = true;
+                        SetTexture(tex_[0], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Player
+                        SetTexture(tex_[1], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 1
+                        SetTexture(tex_[2], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Enemy 2
 
-                    current_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-                    other_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+                        current_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+                        other_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 
-                    // Add the sound
-                    PlayExplosionAudio();
-                }
-                else { // Shielded
-                    if (i == 0) {
-                        std::cout << "collided with enemy but shielded" << std::endl;
-                        game_objects_.erase(game_objects_.begin() + j);
-                        current_game_object->RemoveShields();
-                        shielded = false;
-                        numEnemies--;
-                        continue;
+                        // Add the sound
+                        PlayExplosionAudio();
+                    }
+                    else { // Shielded
+                        if (i == 0) {
+                            std::cout << "collided with enemy but shielded" << std::endl;
+                            game_objects_.erase(game_objects_.begin() + j);
+                            current_game_object->RemoveShields();
+                            shielded = false;
+                            numEnemies--;
+                            continue;
+                        }
                     }
                 }
+                else { // Is a buoy so have appropriate collision response
+                    std::cout << "It's a buoy" << std::endl;
+                    GameObject* buoy = other_game_object;
+
+                    glm::vec3 n = glm::normalize(current_game_object->GetPosition() - buoy->GetPosition());
+                    glm::vec3 v1 = current_game_object->GetVelocity();
+                    glm::vec3 v2 = buoy->GetVelocity();
+
+                    float m1 = current_game_object->GetMass();
+                    float m2 = buoy->GetMass();
+
+                    glm::vec3 v1prime = v1 - ((2 * m2) / (m1 + m2)) * (glm::dot(n, v1 - v2)) * n;
+                    glm::vec3 v2prime = v2 - ((2 * m1) / (m1 + m2)) * (glm::dot(n, v2 - v1)) * n;
+
+                    current_game_object->SetVelocity(v1prime);
+                    buoy->SetVelocity(v2prime);
+                }
+                
             }
 
             // Checking for collision of power up
@@ -609,6 +637,7 @@ void Game::Update(double delta_time) {
             }
 
             if (currentTime >= lastBulletFired + timeUntilBulletHitsEnemy && enemyToDelete!= 0) { // If enough time has passed (enemy hit is assumed)
+                PlayExplosionAudio();
                 game_objects_.erase(game_objects_.begin() + enemyToDelete);
                 game_objects_[0]->DeleteBullet();
                 lastBulletFired = -1.5;

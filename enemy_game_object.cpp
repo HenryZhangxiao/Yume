@@ -6,12 +6,12 @@
 namespace game {
 
 	/*
-		PlayerGameObject inherits from GameObject
+		EnemyGameObject inherits from GameObject
 		It overrides GameObject's update method, so that you can check for input to change the velocity of the player
 	*/
 
-	EnemyGameObject::EnemyGameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, std::string state)
-		: GameObject(position, texture, num_elements, collidable, state) {}
+	EnemyGameObject::EnemyGameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, float mass, std::string state)
+		: GameObject(position, texture, num_elements, collidable, mass, state) {}
 
 	// Update function for moving the player object around
 	void EnemyGameObject::Update(double delta_time) {
@@ -20,9 +20,6 @@ namespace game {
 		if (state_ == "patrolling") { //Patrolling
 			double lastTime = glfwGetTime();
 			SetVelocity(glm::vec3(glm::cos(lastTime), glm::sin(lastTime), 0.0f));
-			//std::cout << "Patrolling" << std::endl;
-			//std::cout << "enemy x vel: " << velocity_.x << std::endl;
-			//position_ += velocity_ * ((float)delta_time);
 		}
 		else { //Moving
 			//std::cout << "Moving" << std::endl;
