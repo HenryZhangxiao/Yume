@@ -474,6 +474,20 @@ void Game::renderShields(double delta_time) {
     }
 }
 
+void Game::buoyCollision(GameObject* object, GameObject* buoy) {
+    glm::vec3 n = glm::normalize(object->GetPosition() - buoy->GetPosition());
+    glm::vec3 v1 = object->GetVelocity();
+    glm::vec3 v2 = buoy->GetVelocity();
+
+    float m1 = object->GetMass();
+    float m2 = buoy->GetMass();
+
+    glm::vec3 v1prime = v1 - ((2 * m2) / (m1 + m2)) * (glm::dot(n, v1 - v2)) * n;
+    glm::vec3 v2prime = v2 - ((2 * m1) / (m1 + m2)) * (glm::dot(n, v2 - v1)) * n;
+
+    object->SetVelocity(v1prime);
+    buoy->SetVelocity(v2prime);
+}
 
 void Game::Update(double delta_time) {
 
@@ -534,7 +548,7 @@ void Game::Update(double delta_time) {
                     }
                     else { // Shielded
                         if (i == 0) {
-                            std::cout << "collided with enemy but shielded" << std::endl;
+                            //std::cout << "collided with enemy but shielded" << std::endl;
                             game_objects_.erase(game_objects_.begin() + j);
                             current_game_object->RemoveShields();
                             shielded = false;
@@ -544,29 +558,17 @@ void Game::Update(double delta_time) {
                     }
                 }
                 else { // Is a buoy so have appropriate collision response
-                    std::cout << "It's a buoy" << std::endl;
+                    //std::cout << "It's a buoy" << std::endl;
                     GameObject* buoy = other_game_object;
-
-                    glm::vec3 n = glm::normalize(current_game_object->GetPosition() - buoy->GetPosition());
-                    glm::vec3 v1 = current_game_object->GetVelocity();
-                    glm::vec3 v2 = buoy->GetVelocity();
-
-                    float m1 = current_game_object->GetMass();
-                    float m2 = buoy->GetMass();
-
-                    glm::vec3 v1prime = v1 - ((2 * m2) / (m1 + m2)) * (glm::dot(n, v1 - v2)) * n;
-                    glm::vec3 v2prime = v2 - ((2 * m1) / (m1 + m2)) * (glm::dot(n, v2 - v1)) * n;
-
-                    current_game_object->SetVelocity(v1prime);
-                    buoy->SetVelocity(v2prime);
+                    buoyCollision(current_game_object, buoy);
                 }
                 
             }
 
             // Checking for collision of power up
             if (i == 0 && j > numEnemies && j < game_objects_.size() - numNonCollidableObjects + numPowerUps) {
-                if (distance < 1.5f) {
-                    std::cout << "collided with shield" << std::endl;
+                if (distance < 1.0f) {
+                    //std::cout << "collided with shield" << std::endl;
                     glm::vec3 curpos = current_game_object->GetPosition();
                     
                     game_objects_.erase(game_objects_.begin() + j); // Erases the power up
@@ -637,7 +639,6 @@ void Game::Update(double delta_time) {
             }
 
             if (currentTime >= lastBulletFired + timeUntilBulletHitsEnemy && enemyToDelete!= 0) { // If enough time has passed (enemy hit is assumed)
-                PlayExplosionAudio();
                 game_objects_.erase(game_objects_.begin() + enemyToDelete);
                 game_objects_[0]->DeleteBullet();
                 lastBulletFired = -1.5;

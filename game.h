@@ -74,6 +74,8 @@ namespace game {
 
             void renderShields(double delta_time);
 
+            void buoyCollision(GameObject* object, GameObject* buoy);
+
 
     }; // class Game
 
