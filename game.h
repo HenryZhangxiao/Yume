@@ -70,6 +70,10 @@ namespace game {
 
             std::pair<float, float> Game::RayCircleCollisionMath(glm::vec3 bulletPosition, glm::vec3 bulletVelocity, glm::vec3 circlePosition);
 
+            void createShields(glm::vec3 curpos);
+
+            void renderShields(double delta_time);
+
     }; // class Game
 
 } // namespace game

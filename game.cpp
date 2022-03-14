@@ -442,6 +442,33 @@ std::pair<float, float> Game::RayCircleCollisionMath(glm::vec3 bulletPosition, g
     return pair;
 }
 
+void Game::createShields(glm::vec3 curpos) {
+    GameObject* player = game_objects_[0];
+    player->AddShield(new ShieldGameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false));
+    player->AddShield(new ShieldGameObject(glm::vec3(curpos.x + 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+    player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+    player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+    player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+    player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+}
+
+void Game::renderShields(double delta_time) {
+    GameObject* player = game_objects_[0];
+    for (int k = 0; k < player->GetShields().size(); k++) {
+        GameObject* shield = player->GetShields()[k];
+        float lastTime = glfwGetTime();
+        shield->SetVelocity(glm::vec3(glm::cos(lastTime + k), glm::sin(lastTime + k), 0.0f));
+        //std::cout << "shield velocity: " << glm::to_string(shield->GetVelocity()) << std::endl;
+        shield->Update(delta_time);
+
+        glm::mat4 around = glm::translate(glm::mat4(1.0f), shield->GetVelocity());
+        //glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), shield->GetPosition());
+        glm::mat4 scaling_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(shield->GetScale(), shield->GetScale(), 1.0));
+
+        shield->Render(shader_, player->GetMovementMatrix() * around * scaling_matrix);
+    }
+}
+
 
 void Game::Update(double delta_time) {
 
@@ -465,6 +492,23 @@ void Game::Update(double delta_time) {
             // Collision detection between player and enemies
             float distance = glm::length(current_game_object->GetPosition() - other_game_object->GetPosition());
 
+            // Player/Enemy interaction (Moving/Patrolling)
+            if (i == 0 && j > 1 && j < 1 + numEnemies) {
+                if (distance < 1.5f) {
+                    other_game_object->SetState("moving");
+                    glm::vec3 resultantVector = GetVectorBetweenTwoPoints(other_game_object->GetPosition(), current_game_object->GetPosition());
+
+                    float angle = glm::angle(resultantVector, glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
+
+                    // Enemy state = moving
+                    other_game_object->SetVelocity(glm::vec3(resultantVector.x, resultantVector.y, 0.0f));
+                    other_game_object->SetAngle(angle + 90);
+                }
+                else {
+                    other_game_object->SetState("patrolling");
+                }
+            }
+
             if (distance < 0.5f && current_game_object->GetCollidable() == true && other_game_object->GetCollidable() == true) {
                 if (!shielded && i==0) { // Not shielded
                     std::cout << "Explode";
@@ -481,31 +525,13 @@ void Game::Update(double delta_time) {
                 }
                 else { // Shielded
                     if (i == 0) {
+                        std::cout << "collided with enemy but shielded" << std::endl;
                         game_objects_.erase(game_objects_.begin() + j);
                         current_game_object->RemoveShields();
                         shielded = false;
                         numEnemies--;
+                        continue;
                     }
-                }
-                // This is where you would perform collision response between objects
-                
-            }
-
-            // Player/Enemy interaction (Moving/Patrolling)
-            if (i == 0 && j > 1 && j < 1 + numEnemies) {
-                if (distance < 1.5f) {
-                    other_game_object->SetState("moving");
-                    glm::vec3 resultantVector = GetVectorBetweenTwoPoints(other_game_object->GetPosition(), current_game_object->GetPosition());
-                    //std::cout << "resultant vector: " << glm::to_string(resultantVector) << std::endl;
-
-                    float angle = glm::angle(resultantVector, glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
-
-                    // Enemy state = moving
-                    other_game_object->SetVelocity(glm::vec3(resultantVector.x, resultantVector.y, 0.0f));
-                    other_game_object->SetAngle(angle + 90);
-                }
-                else {
-                    other_game_object->SetState("patrolling");
                 }
             }
 
@@ -518,12 +544,7 @@ void Game::Update(double delta_time) {
                     game_objects_.erase(game_objects_.begin() + j); // Erases the power up
 
                     if (!shielded) {
-                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x, curpos.y + 1.0f, 0.0f), tex_[6], size_, false));
-                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x + 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
-                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
-                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
-                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
-                        current_game_object->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+                        createShields(curpos);
 
                         for (int k = 0; k < current_game_object->GetShields().size(); k++) {
                             GameObject* shield = current_game_object->GetShields()[k];
@@ -550,19 +571,7 @@ void Game::Update(double delta_time) {
 
             // Render the shields (if exists)
             if (!current_game_object->GetShields().empty()) {
-                for (int k = 0; k < current_game_object->GetShields().size(); k++) {
-                    GameObject* shield = current_game_object->GetShields()[k];
-                    float lastTime = glfwGetTime();
-                    shield->SetVelocity(glm::vec3(glm::cos(lastTime+k), glm::sin(lastTime+k), 0.0f));
-                    //std::cout << "shield velocity: " << glm::to_string(shield->GetVelocity()) << std::endl;
-                    shield->Update(delta_time);
-
-                    glm::mat4 around = glm::translate(glm::mat4(1.0f), shield->GetVelocity());
-                    //glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), shield->GetPosition());
-                    glm::mat4 scaling_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(shield->GetScale(), shield->GetScale(), 1.0));
-
-                    shield->Render(shader_, current_game_object->GetMovementMatrix() * around * scaling_matrix);
-                }
+                renderShields(delta_time);
             }
 
             if (bulletExists) {
