@@ -45,6 +45,7 @@ bool bulletExists = false;
 bool shielded = false;
 unsigned int audio_loops = 0;
 double lastBulletFired = -1.0;
+float timeUntilBulletHitsEnemy = 1.0f;
 unsigned int numNonCollidableObjects = 11;
 unsigned int numPowerUps = 2;
 unsigned int numEnemies = 3;
@@ -132,14 +133,13 @@ void Game::Setup(void)
     // Note that, in this specific implementation, the player object should always be the first object in the game object vector 
     game_objects_.push_back(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[0], size_, true));
 
-    // Setup other objects
+    // Blades as children of PlayerGameObject
+    game_objects_[0]->AddChild(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[4], size_, false));
+
     // Enemies
     game_objects_.push_back(new EnemyGameObject(glm::vec3(-3.0f, 2.0f, 0.0f), tex_[2], size_, true, "patrolling"));
     game_objects_.push_back(new EnemyGameObject(glm::vec3(3.0f, -2.0f, 0.0f), tex_[2], size_, true, "patrolling"));
     game_objects_.push_back(new EnemyGameObject(glm::vec3(0.8f, 1.5f, 0.0f), tex_[2], size_, true, "patrolling"));
-
-    // Blades as children of PlayerGameObject
-    game_objects_[0]->AddChild(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[4], size_, false));
 
     // Shield power ups
     game_objects_.push_back(new GameObject(glm::vec3(3.0f, 1.0f, 0.0f), tex_[7], size_, false));
@@ -193,8 +193,7 @@ void Game::Setup(void)
 }
 
 
-void Game::MainLoop(void)
-{
+void Game::MainLoop(void) {
 
     // Loop while the user did not close the window
     double lastTime = glfwGetTime();
@@ -208,16 +207,10 @@ void Game::MainLoop(void)
 
         // Set view to zoom out, centered by default at 0,0
         float cameraZoom = 0.25f;
-        //float cameraSpeed = game_objects_[0]->GetVelocity();
-        //position_ += velocity_ * ((float)delta_time);
 
         cameraPos = game_objects_[0]->GetPosition();
 
-        //glm::mat4 view_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(cameraZoom, cameraZoom, cameraZoom));
-
-        //glm::mat4 view = glm::scale(glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp), glm::vec3(cameraZoom, cameraZoom, cameraZoom));
         glm::mat4 view_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(cameraZoom, cameraZoom, cameraZoom)) * glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        //glm::mat4 view_matrix = glm::scale(view, glm::vec3(cameraZoom, cameraZoom, cameraZoom));
 
         shader_.SetUniformMat4("view_matrix", view_matrix);
 
@@ -341,12 +334,9 @@ void Game::Controls(void) {
     // Check for player input and make changes accordingly
     if (glfwGetKey(window_, GLFW_KEY_W) == GLFW_PRESS) {
         player->SetVelocity(curvel + glm::vec3(0.05*glm::cos(angle), 0.05*glm::sin(angle), 0.0f));
-        //player->SetVelocity(curvel + glm::vec3(0.001, 0.001, 0));
-        //std::cout << "angle: " << deg_angle << std::endl;
     }
     if (glfwGetKey(window_, GLFW_KEY_S) == GLFW_PRESS) {
         player->SetVelocity(curvel - glm::vec3(0.05*glm::cos(angle), 0.05*glm::sin(angle), 0.0f));
-        //player->SetVelocity(curvel - glm::vec3(0.001, 0.001, 0));
     }
     if (glfwGetKey(window_, GLFW_KEY_D) == GLFW_PRESS) {
         player->SetAngle(player->GetAngle() - 0.02f);
@@ -363,7 +353,6 @@ void Game::Controls(void) {
     if (glfwGetKey(window_, GLFW_KEY_SPACE) == GLFW_PRESS) {
         double currentTime = glfwGetTime();
         double bulletDifference = currentTime - lastBulletFired;
-        //std::cout << "current time: " << currentTime << std::endl;
 
         if (bulletDifference >= 1.0 && !bulletExists) {
             // Bullet
@@ -375,8 +364,9 @@ void Game::Controls(void) {
             glm::vec3 bulletVelocity = glm::vec3(8 * glm::cos(glm::radians(angle)), 8 * glm::sin(glm::radians(angle)), 0.0);
             bullet->SetVelocity(bulletVelocity, true);
             bullet->SetAngle(player->GetAngle());
-            int i = 1;
-            auto it = game_objects_.insert(game_objects_.begin() + i, bullet);
+            //int i = 1;
+            //auto it = game_objects_.insert(game_objects_.begin() + i, bullet);
+            player->AddBullet(bullet);
             lastBulletFired = currentTime;
             bulletExists = true;
         }
@@ -459,7 +449,6 @@ void Game::Update(double delta_time) {
     if (game_over == false) {
         Controls();
     }
-    
 
     // Update and render all game objects
     for (int i = 0; i < game_objects_.size(); i++) {
@@ -469,25 +458,15 @@ void Game::Update(double delta_time) {
         // Update the current game object
         current_game_object->Update(delta_time);
 
-        int lowerbound;
-        int upperbound;
-        if (bulletExists) {
-            lowerbound = 1;
-            upperbound = game_objects_.size() - numNonCollidableObjects;
-        }
-        else {
-            lowerbound = 0;
-            upperbound = game_objects_.size() - numNonCollidableObjects;
-        }
-
         // Check for collision with other game objects
         for (int j = i + 1; j < game_objects_.size(); j++) {
             GameObject* other_game_object = game_objects_[j];
 
             // Collision detection between player and enemies
             float distance = glm::length(current_game_object->GetPosition() - other_game_object->GetPosition());
+
             if (distance < 0.5f && current_game_object->GetCollidable() == true && other_game_object->GetCollidable() == true) {
-                if (!shielded && i==0) {
+                if (!shielded && i==0) { // Not shielded
                     std::cout << "Explode";
                     game_over = true;
                     SetTexture(tex_[0], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Player
@@ -496,6 +475,7 @@ void Game::Update(double delta_time) {
 
                     current_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
                     other_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+
                     // Add the sound
                     PlayExplosionAudio();
                 }
@@ -511,9 +491,8 @@ void Game::Update(double delta_time) {
                 
             }
 
-
             // Player/Enemy interaction (Moving/Patrolling)
-            if (i == 0 && j > lowerbound && j < upperbound) {
+            if (i == 0 && j > 1 && j < 1 + numEnemies) {
                 if (distance < 1.5f) {
                     other_game_object->SetState("moving");
                     glm::vec3 resultantVector = GetVectorBetweenTwoPoints(other_game_object->GetPosition(), current_game_object->GetPosition());
@@ -585,15 +564,25 @@ void Game::Update(double delta_time) {
                     shield->Render(shader_, current_game_object->GetMovementMatrix() * around * scaling_matrix);
                 }
             }
+
+            if (bulletExists) {
+                GameObject* bullet = game_objects_[0]->GetBullet()[0];
+                bullet->Update(delta_time);
+                bullet->Render(shader_);
+            }
+
         }
 
-        float t = 1.0;
-        int enemyToDelete;
+        float timeUntilBulletHitsEnemy = 1.0f;
+        int enemyToDelete = 0;
+
+        // These bounds are for checking the bullet
+        int lowerbound = 0;
+        int upperbound = game_objects_.size() - numNonCollidableObjects;;
 
         // If bullet exists
-        if (i == 1 && bulletExists) {
-
-            GameObject* bullet = game_objects_[1];
+        if (bulletExists) {
+            GameObject* bullet = game_objects_[0]->GetBullet()[0];
             double currentTime = glfwGetTime();
             double bulletDifference = currentTime - lastBulletFired;
 
@@ -603,28 +592,29 @@ void Game::Update(double delta_time) {
                 GameObject* circle = game_objects_[j];
                 std::pair<float, float> pair = RayCircleCollisionMath(bullet->GetPosition(), bullet->GetVelocity(), circle->GetPosition());
                 if (pair.first >= 0 || pair.second >= 0) {
-                    if (std::min(pair.first, pair.second) < t) {
-                        t = std::min(pair.first, pair.second);
+                    if (std::min(pair.first, pair.second) < timeUntilBulletHitsEnemy) {
+                        timeUntilBulletHitsEnemy = std::min(pair.first, pair.second);
                         enemyToDelete = j;
                     }
                 }
             }
-            if (t < 1.0) {
+
+            if (currentTime >= lastBulletFired + timeUntilBulletHitsEnemy && enemyToDelete!= 0) { // If enough time has passed (enemy hit is assumed)
                 game_objects_.erase(game_objects_.begin() + enemyToDelete);
-                game_objects_.erase(game_objects_.begin() + 1);
+                game_objects_[0]->DeleteBullet();
                 lastBulletFired = -1.5;
                 bulletExists = false;
                 numEnemies--;
             }
 
             // Check if it's been 1.5 seconds since last bullet was fired
-            // If so, then we can erase the bullet from the game_objects_ vector
+            // If so, then we can delete the bullet from the child vector
             if (bulletDifference >= 1.0) {
-                int i = 1;
-                game_objects_.erase(game_objects_.begin() + i);
+                game_objects_[0]->DeleteBullet();
                 lastBulletFired = -1.5;
                 bulletExists = false;
             }
+
         }
     }
 
