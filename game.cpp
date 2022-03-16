@@ -419,7 +419,6 @@ void Game::PlayExplosionAudio(void) {
     }
 }
 
-
 glm::vec3 Game::GetVectorBetweenTwoPoints(glm::vec3 start, glm::vec3 destination) {
 
     return(glm::normalize(glm::vec3(destination.x - start.x, destination.y - start.y, 0)));
@@ -455,6 +454,60 @@ void Game::createShields(glm::vec3 curpos) {
     player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
     player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
     player->AddShield(new ShieldGameObject(glm::vec3(curpos.x - 1.0f, curpos.y - 0.5f, 0.0f), tex_[6], size_, false));
+}
+
+void Game::renderBlades(void) {
+    GameObject* player = game_objects_[0];
+    GameObject* blades = player->GetChildren()[0];
+    blades->SetAngle(blades->GetAngle() + 0.3f);
+    blades->Render(shader_, player->GetTransformationMatrix());
+}
+
+void Game::bulletUpdate(void) {
+    GameObject* bullet = game_objects_[0]->GetBullet()[0];
+    double currentTime = glfwGetTime();
+    double bulletDifference = currentTime - lastBulletFired;
+    int lowerbound = 0;
+    int upperbound = game_objects_.size() - numNonCollidableObjects;;
+    int enemyToDelete = 0;
+    float timeUntilBulletHitsEnemy = 1.0f;
+    // These bounds are for checking the bullet
+
+
+    // Perform Ray-Circle Collision detection
+    // Loop through each enemy to check for collision
+    for (int j = lowerbound + 1; j < upperbound; j++) {
+        GameObject* circle = game_objects_[j];
+        std::pair<float, float> pair = RayCircleCollisionMath(bullet->GetPosition(), bullet->GetVelocity(), circle->GetPosition());
+        if (pair.first >= 0 || pair.second >= 0) {
+            if (std::min(pair.first, pair.second) < timeUntilBulletHitsEnemy) {
+                timeUntilBulletHitsEnemy = std::min(pair.first, pair.second);
+                enemyToDelete = j;
+            }
+        }
+    }
+
+    if (currentTime >= lastBulletFired + timeUntilBulletHitsEnemy && enemyToDelete != 0) { // If enough time has passed (enemy hit is assumed)
+        game_objects_.erase(game_objects_.begin() + enemyToDelete);
+        game_objects_[0]->DeleteBullet();
+        lastBulletFired = -1.5;
+        bulletExists = false;
+        numEnemies--;
+    }
+
+    // Check if it's been 1.5 seconds since last bullet was fired
+    // If so, then we can delete the bullet from the child vector
+    if (bulletDifference >= 1.0) {
+        game_objects_[0]->DeleteBullet();
+        lastBulletFired = -1.5;
+        bulletExists = false;
+    }
+}
+
+void Game::renderBullet(double delta_time) {
+    GameObject* bullet = game_objects_[0]->GetBullet()[0];
+    bullet->Update(delta_time);
+    bullet->Render(shader_);
 }
 
 void Game::renderShields(double delta_time) {
@@ -557,7 +610,7 @@ void Game::Update(double delta_time) {
                         }
                     }
                 }
-                else { // Is a buoy so have appropriate collision response
+                else { // It's a buoy so have appropriate collision response
                     //std::cout << "It's a buoy" << std::endl;
                     GameObject* buoy = other_game_object;
                     buoyCollision(current_game_object, buoy);
@@ -595,65 +648,20 @@ void Game::Update(double delta_time) {
         // 'Parent' Main sprite object
         if (i == 0) {
             // Render the blades
-            GameObject* blades = current_game_object->GetChildren()[0];
-            blades->SetAngle(blades->GetAngle() + 0.3f);
-            blades->Render(shader_, current_game_object->GetTransformationMatrix());
+            renderBlades();
 
             // Render the shields (if exists)
             if (!current_game_object->GetShields().empty()) {
                 renderShields(delta_time);
             }
-
             if (bulletExists) {
-                GameObject* bullet = game_objects_[0]->GetBullet()[0];
-                bullet->Update(delta_time);
-                bullet->Render(shader_);
+                renderBullet(delta_time);
             }
-
         }
 
-        float timeUntilBulletHitsEnemy = 1.0f;
-        int enemyToDelete = 0;
-
-        // These bounds are for checking the bullet
-        int lowerbound = 0;
-        int upperbound = game_objects_.size() - numNonCollidableObjects;;
-
-        // If bullet exists
+        // If bullet exists, update and check for collisions
         if (bulletExists) {
-            GameObject* bullet = game_objects_[0]->GetBullet()[0];
-            double currentTime = glfwGetTime();
-            double bulletDifference = currentTime - lastBulletFired;
-
-            // Perform Ray-Circle Collision detection
-            // Loop through each enemy to check for collision
-            for (int j = lowerbound+1; j < upperbound; j++) {
-                GameObject* circle = game_objects_[j];
-                std::pair<float, float> pair = RayCircleCollisionMath(bullet->GetPosition(), bullet->GetVelocity(), circle->GetPosition());
-                if (pair.first >= 0 || pair.second >= 0) {
-                    if (std::min(pair.first, pair.second) < timeUntilBulletHitsEnemy) {
-                        timeUntilBulletHitsEnemy = std::min(pair.first, pair.second);
-                        enemyToDelete = j;
-                    }
-                }
-            }
-
-            if (currentTime >= lastBulletFired + timeUntilBulletHitsEnemy && enemyToDelete!= 0) { // If enough time has passed (enemy hit is assumed)
-                game_objects_.erase(game_objects_.begin() + enemyToDelete);
-                game_objects_[0]->DeleteBullet();
-                lastBulletFired = -1.5;
-                bulletExists = false;
-                numEnemies--;
-            }
-
-            // Check if it's been 1.5 seconds since last bullet was fired
-            // If so, then we can delete the bullet from the child vector
-            if (bulletDifference >= 1.0) {
-                game_objects_[0]->DeleteBullet();
-                lastBulletFired = -1.5;
-                bulletExists = false;
-            }
-
+            bulletUpdate();
         }
     }
 

@@ -72,6 +72,12 @@ namespace game {
 
             void createShields(glm::vec3 curpos);
 
+            void renderBlades(void);
+
+            void bulletUpdate(void);
+
+            void renderBullet(double delta_time);
+
             void renderShields(double delta_time);
 
             void buoyCollision(GameObject* object, GameObject* buoy);
