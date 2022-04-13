@@ -15,6 +15,13 @@ set(HDRS
     enemy_game_object.h
     shield_game_object.h
     buoy_game_object.h
+    shield_power_up.h
+    background_game_object.h
+    seeker_game_object.h
+    penguin_game_object.h
+    star_power_up.h
+    arrow_power_up.h
+    arrow_game_object.h
 )
  
 set(SRCS
@@ -28,6 +35,13 @@ set(SRCS
     enemy_game_object.cpp
     shield_game_object.cpp
     buoy_game_object.cpp
+    shield_power_up.cpp
+    background_game_object.cpp
+    seeker_game_object.cpp
+    penguin_game_object.cpp
+    star_power_up.cpp
+    arrow_power_up.cpp
+    arrow_game_object.cpp
     vertex_shader.glsl
     fragment_shader.glsl
 )

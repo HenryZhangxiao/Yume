@@ -6,6 +6,18 @@
 
 namespace game {
 
+GameObject::GameObject(const glm::vec3& position, GLuint texture)
+{
+
+    // Initialize all attributes
+    position_ = position;
+    scale_ = 1.0;
+    angle_ = 0.0f;
+    velocity_ = glm::vec3(0.0f, 0.0f, 0.0f); // Starts out stationary
+    texture_ = texture;
+    collidable_ = false;
+}
+
 GameObject::GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable)
 {
     // Initialize all attributes

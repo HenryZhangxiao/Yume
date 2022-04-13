@@ -22,6 +22,13 @@
 #include "shield_game_object.h"
 #include "game_object.h"
 #include "buoy_game_object.h"
+#include "shield_power_up.h"
+#include "background_game_object.h"
+#include "seeker_game_object.h"
+#include "star_power_up.h"
+#include "penguin_game_object.h"
+#include "arrow_power_up.h"
+#include "arrow_game_object.h"
 
 #include "bin/path_config.h"
 #include "glm/ext.hpp"
@@ -35,7 +42,7 @@ namespace game {
 // They are written here as global variables, but ideally they should be loaded from a configuration file
 
 // Globals that define the OpenGL window and viewport
-const char *window_title_g = "Game Demo";
+const char *window_title_g = "Yume";
 const unsigned int window_width_g = 800;
 const unsigned int window_height_g = 600;
 const glm::vec3 viewport_background_color_g(0.0, 0.0, 1.0);
@@ -44,13 +51,20 @@ const glm::vec3 viewport_background_color_g(0.0, 0.0, 1.0);
 bool game_over = false;
 bool bulletExists = false;
 bool shielded = false;
+bool invincible = false;
+bool frozen = false;
+bool arrowPowerUp = false;
+bool arrowExists = false;
 unsigned int audio_loops = 0;
 double lastBulletFired = -1.0;
 float timeUntilBulletHitsEnemy = 1.0f;
 unsigned int numNonCollidableObjects = 13;
 unsigned int numPowerUps = 2;
-unsigned int numEnemies = 3;
+unsigned int numEnemies = 5;
 unsigned int numBuoys = 2;
+double lastInvincible = 0.0;
+double lastFrozen = 0.0;
+double lastArrow = 0.0;
 
 //Camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -105,7 +119,9 @@ void Game::Init(void)
 
     // Initialize shader
     shader_.Init((resources_directory_g+std::string("/vertex_shader.glsl")).c_str(), (resources_directory_g+std::string("/fragment_shader.glsl")).c_str());
+    shader_.CreateSprite();
     shader_.Enable();
+    shader_.SetSpriteAttributes();
 
     // Set up z-buffer for rendering
     glEnable(GL_DEPTH_TEST);
@@ -140,63 +156,79 @@ void Game::Setup(void)
     game_objects_[0]->AddChild(new PlayerGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[4], size_, false));
 
     // Enemies
-    game_objects_.push_back(new EnemyGameObject(glm::vec3(-3.0f, 2.0f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
+    game_objects_.push_back(new EnemyGameObject(glm::vec3(-3.0f, 4.0f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
     game_objects_.push_back(new EnemyGameObject(glm::vec3(3.0f, -2.0f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
     game_objects_.push_back(new EnemyGameObject(glm::vec3(0.8f, 1.5f, 0.0f), tex_[2], size_, true, 10.0f, "patrolling"));
 
     // Shield power ups
-    game_objects_.push_back(new GameObject(glm::vec3(3.0f, 1.0f, 0.0f), tex_[7], size_, false));
-    game_objects_.push_back(new GameObject(glm::vec3(-2.0f, -1.0f, 0.0f), tex_[7], size_, false));
+    game_objects_.push_back(new ShieldPowerUp(glm::vec3(3.0f, 1.0f, 0.0f), tex_[7], size_, false));
+    game_objects_.push_back(new ShieldPowerUp(glm::vec3(-2.0f, -1.0f, 0.0f), tex_[7], size_, false));
+
+    // Star power ups
+    game_objects_.push_back(new StarPowerUp(glm::vec3(3.0f, 3.0f, 0.0f), tex_[10], size_, false));
+    game_objects_.push_back(new StarPowerUp(glm::vec3(-2.0f, -3.0f, 0.0f), tex_[10], size_, false));
 
     // Buoys
-    game_objects_.push_back(new BuoyGameObject(glm::vec3(2.0f, 0.0f, 0.0f), tex_[8], size_, true, 10.0f));
-    game_objects_.push_back(new BuoyGameObject(glm::vec3(-2.0f, 1.0f, 0.0f), tex_[8], size_, true, 20.0f));
+    //game_objects_.push_back(new BuoyGameObject(glm::vec3(2.0f, 0.0f, 0.0f), tex_[8], size_, true, 10.0f));
+    //game_objects_.push_back(new BuoyGameObject(glm::vec3(-2.0f, 1.0f, 0.0f), tex_[8], size_, true, 20.0f));
+
+    // Arrow power up
+    game_objects_.push_back(new ArrowPowerUp(glm::vec3(-4.0f, -3.0f, 0.0f), tex_[12], size_, false));
+
+    // Seekers
+    game_objects_.push_back(new SeekerGameObject(glm::vec3(3.0f, -2.0f, 0.0f), tex_[9], size_, true, 5.0f, "moving"));
+    game_objects_.push_back(new SeekerGameObject(glm::vec3(-4.0f, 2.0f, 0.0f), tex_[9], size_, true, 5.0f, "moving"));
+
+    // Penguins
+    game_objects_.push_back(new PenguinGameObject(glm::vec3(0.0f, 5.0f, 0.0f), tex_[11], size_, false, 5.0f, "patrolling"));
+    game_objects_.push_back(new PenguinGameObject(glm::vec3(0.0f, -5.0f, 0.0f), tex_[11], size_, false, 5.0f, "patrolling"));
 
     // Setup background
     // Origin
-    GameObject *background = new GameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[3], size_, false);
+    GameObject *background = new BackgroundGameObject(glm::vec3(0.0f, 0.0f, 0.0f), tex_[3], size_, false);
     background->SetScale(10.0);
     game_objects_.push_back(background);
 
     //Top Left
-    GameObject* background2 = new GameObject(glm::vec3(-10.0f, 10.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background2 = new BackgroundGameObject(glm::vec3(-10.0f, 10.0f, 0.0f), tex_[3], size_, false);
     background2->SetScale(10.0);
     game_objects_.push_back(background2);
 
     //Top Middle
-    GameObject* background3 = new GameObject(glm::vec3(0.0f, 10.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background3 = new BackgroundGameObject(glm::vec3(0.0f, 10.0f, 0.0f), tex_[3], size_, false);
     background3->SetScale(10.0);
     game_objects_.push_back(background3);
 
     //Top Right
-    GameObject* background4 = new GameObject(glm::vec3(10.0f, 10.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background4 = new BackgroundGameObject(glm::vec3(10.0f, 10.0f, 0.0f), tex_[3], size_, false);
     background4->SetScale(10.0);
     game_objects_.push_back(background4);
 
     //Middle Left
-    GameObject* background5 = new GameObject(glm::vec3(-10.0f, 0.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background5 = new BackgroundGameObject(glm::vec3(-10.0f, 0.0f, 0.0f), tex_[3], size_, false);
     background5->SetScale(10.0);
     game_objects_.push_back(background5);
 
     //Middle Right
-    GameObject* background6 = new GameObject(glm::vec3(10.0f, 0.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background6 = new BackgroundGameObject(glm::vec3(10.0f, 0.0f, 0.0f), tex_[3], size_, false);
     background6->SetScale(10.0);
     game_objects_.push_back(background6);
 
     //Bottom Left
-    GameObject* background7 = new GameObject(glm::vec3(-10.0f, -10.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background7 = new BackgroundGameObject(glm::vec3(-10.0f, -10.0f, 0.0f), tex_[3], size_, false);
     background7->SetScale(10.0);
     game_objects_.push_back(background7);
 
     //Bottom Middle
-    GameObject* background8 = new GameObject(glm::vec3(0.0f, -10.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background8 = new BackgroundGameObject(glm::vec3(0.0f, -10.0f, 0.0f), tex_[3], size_, false);
     background8->SetScale(10.0);
     game_objects_.push_back(background8);
 
     //Bottom Right
-    GameObject* background9 = new GameObject(glm::vec3(10.0f, -10.0f, 0.0f), tex_[3], size_, false);
+    GameObject* background9 = new BackgroundGameObject(glm::vec3(10.0f, -10.0f, 0.0f), tex_[3], size_, false);
     background9->SetScale(10.0);
     game_objects_.push_back(background9);
+
 }
 
 
@@ -315,14 +347,19 @@ void Game::SetAllTextures(void)
     // Load all textures that we will need
     glGenTextures(NUM_TEXTURES, tex_);
     SetTexture(tex_[0], (resources_directory_g + std::string("/textures/chopper.png")).c_str());
-    SetTexture(tex_[1], (resources_directory_g + std::string("/textures/spider.png")).c_str());
-    SetTexture(tex_[2], (resources_directory_g + std::string("/textures/spider.png")).c_str());
-    SetTexture(tex_[3], (resources_directory_g + std::string("/textures/dune.png")).c_str());
+    SetTexture(tex_[1], (resources_directory_g + std::string("/textures/alien.png")).c_str());
+    SetTexture(tex_[2], (resources_directory_g + std::string("/textures/alien.png")).c_str());
+    SetTexture(tex_[3], (resources_directory_g + std::string("/textures/space.png")).c_str());
     SetTexture(tex_[4], (resources_directory_g + std::string("/textures/blade.png")).c_str());
     SetTexture(tex_[5], (resources_directory_g + std::string("/textures/bullet.png")).c_str());
     SetTexture(tex_[6], (resources_directory_g + std::string("/textures/orb.png")).c_str());
     SetTexture(tex_[7], (resources_directory_g + std::string("/textures/shield.png")).c_str());
     SetTexture(tex_[8], (resources_directory_g + std::string("/textures/donut.png")).c_str());
+    SetTexture(tex_[9], (resources_directory_g + std::string("/textures/clown.png")).c_str());
+    SetTexture(tex_[10], (resources_directory_g + std::string("/textures/star.png")).c_str());
+    SetTexture(tex_[11], (resources_directory_g + std::string("/textures/penguin.png")).c_str());
+    SetTexture(tex_[12], (resources_directory_g + std::string("/textures/bow.png")).c_str());
+    SetTexture(tex_[13], (resources_directory_g + std::string("/textures/arrow.png")).c_str());
     glBindTexture(GL_TEXTURE_2D, tex_[0]);
 }
 
@@ -356,6 +393,32 @@ void Game::Controls(void) {
     }
     if (glfwGetKey(window_, GLFW_KEY_Q) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window_, true);
+    }
+    if (glfwGetKey(window_, GLFW_KEY_V) == GLFW_PRESS) {
+        if (arrowPowerUp) {
+            std::cout << "Should be making an arrow now" << std::endl;
+            /*GameObject* arrow = new ArrowGameObject(glm::vec3(player->GetPosition()), tex_[13], size_, false);
+            float angle = player->GetAngle() + 90.0;
+            //std::cout << "supposed velocity: " << glm::to_string(2.5f * player->GetVelocity()) << std::endl;
+            glm::vec3 arrowVelocity = glm::vec3(8 * glm::cos(glm::radians(angle)), 8 * glm::sin(glm::radians(angle)), 0.0);
+            arrow->SetVelocity(arrowVelocity, true);
+            arrow->SetAngle(player->GetAngle());
+            arrowPowerUp = false;
+            arrowExists = true;
+            game_objects_.push_back(arrow);*/
+            GameObject* arrow = new GameObject(glm::vec3(player->GetPosition()), tex_[13], size_, false);
+            arrow->SetPosition(player->GetPosition());
+            float angle = player->GetAngle() + 90.0;
+            //std::cout << "supposed velocity: " << glm::to_string(2.5f * player->GetVelocity()) << std::endl;
+            glm::vec3 arrowVelocity = glm::vec3(8 * glm::cos(glm::radians(angle)), 8 * glm::sin(glm::radians(angle)), 0.0);
+            arrow->SetVelocity(arrowVelocity, true);
+            arrow->SetAngle(player->GetAngle());
+            player->AddArrow(arrow);
+            arrowPowerUp = false;
+            arrowExists = true;
+            lastArrow = glfwGetTime();
+            std::cout << "successfully made arrow" << std::endl;
+        }
     }
     
     if (glfwGetKey(window_, GLFW_KEY_SPACE) == GLFW_PRESS) {
@@ -467,8 +530,6 @@ void Game::bulletUpdate(void) {
     GameObject* bullet = game_objects_[0]->GetBullet()[0];
     double currentTime = glfwGetTime();
     double bulletDifference = currentTime - lastBulletFired;
-    int lowerbound = 0;
-    int upperbound = game_objects_.size() - numNonCollidableObjects;;
     int enemyToDelete = 0;
     float timeUntilBulletHitsEnemy = 1.0f;
     // These bounds are for checking the bullet
@@ -476,15 +537,18 @@ void Game::bulletUpdate(void) {
 
     // Perform Ray-Circle Collision detection
     // Loop through each enemy to check for collision
-    for (int j = lowerbound + 1; j < upperbound; j++) {
-        GameObject* circle = game_objects_[j];
-        std::pair<float, float> pair = RayCircleCollisionMath(bullet->GetPosition(), bullet->GetVelocity(), circle->GetPosition());
-        if (pair.first >= 0 || pair.second >= 0) {
-            if (std::min(pair.first, pair.second) < timeUntilBulletHitsEnemy) {
-                timeUntilBulletHitsEnemy = std::min(pair.first, pair.second);
-                enemyToDelete = j;
+    for (int i = 0; i < game_objects_.size(); i++) {
+        GameObject* circle = game_objects_[i];
+        if (typeid(*circle) == typeid(SeekerGameObject) || typeid(*circle) == typeid(EnemyGameObject)) {
+            std::pair<float, float> pair = RayCircleCollisionMath(bullet->GetPosition(), bullet->GetVelocity(), circle->GetPosition());
+            if (pair.first >= 0 || pair.second >= 0) {
+                if (std::min(pair.first, pair.second) < timeUntilBulletHitsEnemy) {
+                    timeUntilBulletHitsEnemy = std::min(pair.first, pair.second);
+                    enemyToDelete = i;
+                }
             }
         }
+        
     }
 
     if (currentTime >= lastBulletFired + timeUntilBulletHitsEnemy && enemyToDelete != 0) { // If enough time has passed (enemy hit is assumed)
@@ -504,10 +568,45 @@ void Game::bulletUpdate(void) {
     }
 }
 
+void Game::arrowUpdate(void) {
+    std::cout << "updating arrow" << std::endl;
+    GameObject* arrow = game_objects_[0]->GetArrow()[0];
+    int enemyToDelete = 0;
+
+    if(glfwGetTime() - lastArrow >= 3.0){
+        game_objects_[0]->DeleteArrow();
+        arrowExists = false;
+        return;
+    }
+
+    // Loop through each enemy to check for collision
+    for (int i = 0; i < game_objects_.size(); i++) {
+        GameObject* obj = game_objects_[i];
+        float distance = glm::length(arrow->GetPosition() - obj->GetPosition());
+        if (distance <= 1.0) {
+            if (typeid(*obj) == typeid(SeekerGameObject) || typeid(*obj) == typeid(EnemyGameObject)) {
+                enemyToDelete = i;
+                game_objects_.erase(game_objects_.begin() + enemyToDelete);
+                break;
+            }
+        }   
+    }
+    
+    std::cout << "done updating arrow" << std::endl;
+}
+
 void Game::renderBullet(double delta_time) {
     GameObject* bullet = game_objects_[0]->GetBullet()[0];
     bullet->Update(delta_time);
     bullet->Render(shader_);
+}
+
+void Game::renderArrow(double delta_time) {
+    std::cout << "rendering arrow" << std::endl;
+    GameObject* arrow = game_objects_[0]->GetArrow()[0];
+    arrow->Update(delta_time);
+    arrow->Render(shader_);
+    std::cout << "done rendering arrow" << std::endl;
 }
 
 void Game::renderShields(double delta_time) {
@@ -545,10 +644,10 @@ void Game::buoyCollision(GameObject* object, GameObject* buoy) {
 void Game::Update(double delta_time) {
 
     // Handle user input
-    if (game_over == false) {
+    if (!game_over && !frozen) {
         Controls();
     }
-    else {
+    if(game_over || numEnemies == 0){
         exit(0);
     }
 
@@ -568,7 +667,30 @@ void Game::Update(double delta_time) {
             float distance = glm::length(current_game_object->GetPosition() - other_game_object->GetPosition());
 
             // Player/Enemy interaction (Moving/Patrolling)
-            if (i == 0 && j > 1 && j < 1 + numEnemies) {
+            if(typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(EnemyGameObject)){
+                if (distance < 1.5f) {
+                    other_game_object->SetState("moving");
+                    glm::vec3 resultantVector = GetVectorBetweenTwoPoints(other_game_object->GetPosition(), current_game_object->GetPosition());
+
+                    float angle = glm::angle(resultantVector, glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
+
+                    // Enemy state = moving
+                    other_game_object->SetVelocity(glm::vec3(resultantVector.x, resultantVector.y, 0.0f));
+                    other_game_object->SetAngle(angle + 90);
+                }
+                else {
+                    other_game_object->SetState("patrolling");
+                }
+            }
+            else if (typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(SeekerGameObject)) {
+                glm::vec3 resultantVector = GetVectorBetweenTwoPoints(other_game_object->GetPosition(), current_game_object->GetPosition());
+
+                float angle = glm::angle(resultantVector, glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
+
+                other_game_object->SetVelocity(glm::vec3(resultantVector.x, resultantVector.y, 0.0f));
+                other_game_object->SetAngle(angle + 90);
+            }
+            else if (typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(PenguinGameObject)) {
                 if (distance < 1.5f) {
                     other_game_object->SetState("moving");
                     glm::vec3 resultantVector = GetVectorBetweenTwoPoints(other_game_object->GetPosition(), current_game_object->GetPosition());
@@ -584,9 +706,12 @@ void Game::Update(double delta_time) {
                 }
             }
 
-            if (distance < 1.0f && current_game_object->GetCollidable() == true && other_game_object->GetCollidable() == true) {
+
+            if (distance < 1.0f && current_game_object->GetCollidable() && other_game_object->GetCollidable()) {
                 if (typeid(*other_game_object) != typeid(BuoyGameObject)) { // Not a buoy so can apply destruction logic
                     if (!shielded && i == 0) { // Not shielded
+                        
+                        std::cout << "currentgameobject collidable is " << current_game_object->GetCollidable() << std::endl;
                         std::cout << "Explode";
                         game_over = true;
                         SetTexture(tex_[0], (resources_directory_g + std::string("/textures/explosion.png")).c_str()); //Player
@@ -615,11 +740,10 @@ void Game::Update(double delta_time) {
                     GameObject* buoy = other_game_object;
                     buoyCollision(current_game_object, buoy);
                 }
-                
             }
 
             // Checking for collision of power up
-            if (i == 0 && j > numEnemies && j < game_objects_.size() - numNonCollidableObjects + numPowerUps) {
+            if (typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(ShieldPowerUp)) {
                 if (distance < 1.0f) {
                     //std::cout << "collided with shield" << std::endl;
                     glm::vec3 curpos = current_game_object->GetPosition();
@@ -634,9 +758,34 @@ void Game::Update(double delta_time) {
                             shield->SetScale(0.25f);
                         }
                         shielded = true;
-                        numPowerUps--;
-                        numNonCollidableObjects--;
                     }
+                }
+            }
+            else if (typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(StarPowerUp)) {
+                if (distance < 1.0f) {
+                    //std::cout << "collided with star" << std::endl;
+                    glm::vec3 curpos = current_game_object->GetPosition();
+
+                    game_objects_.erase(game_objects_.begin() + j); // Erases the power up
+
+                    current_game_object->SetCollidable(false);
+                    lastInvincible = glfwGetTime();
+                    invincible = true;
+
+                }
+            }
+            else if (typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(PenguinGameObject)) {
+                if (distance < 1.0f) {
+                    game_objects_.erase(game_objects_.begin() + j); // Erases the penguin
+                    lastFrozen = glfwGetTime();
+                    frozen = true;
+                    current_game_object->SetVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+                }
+            }
+            else if (typeid(*current_game_object) == typeid(PlayerGameObject) && typeid(*other_game_object) == typeid(ArrowPowerUp)) {
+                if (distance < 1.0f) {
+                    game_objects_.erase(game_objects_.begin() + j); // Erases the power up
+                    arrowPowerUp = true;
                 }
             }
 
@@ -644,6 +793,7 @@ void Game::Update(double delta_time) {
 
         // Render game object
         current_game_object->Render(shader_);
+
 
         // 'Parent' Main sprite object
         if (i == 0) {
@@ -657,14 +807,38 @@ void Game::Update(double delta_time) {
             if (bulletExists) {
                 renderBullet(delta_time);
             }
+            if (arrowExists) {
+                renderArrow(delta_time);
+            }
+
+            double currentTime = glfwGetTime();
+            double invincibleDifference = currentTime - lastInvincible;
+            double frozenDifference = currentTime - lastFrozen;
+
+            if (invincible) {
+                if (invincibleDifference >= 5.0) {
+                    current_game_object->SetCollidable(true);
+                    invincible = false;
+                }
+            }
+            if (frozen) {
+                if (frozenDifference >= 3.0) {
+                    frozen = false;
+                }
+            }
         }
 
         // If bullet exists, update and check for collisions
         if (bulletExists) {
             bulletUpdate();
         }
-    }
 
+        
+
+    }
+    if (arrowExists) {
+        arrowUpdate();
+    }
 }
        
 } // namespace game

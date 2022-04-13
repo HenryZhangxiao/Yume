@@ -20,6 +20,7 @@ namespace game {
 
         public:
             // Constructor
+            GameObject(const glm::vec3& position, GLuint texture);
             GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable);
             GameObject(const glm::vec3 &position, GLuint texture, GLint num_elements, bool collidable, float mass);
             GameObject(const glm::vec3& position, GLuint texture, GLint num_elements, bool collidable, float mass, std::string state);
@@ -44,6 +45,7 @@ namespace game {
             inline glm::mat4& GetMovementMatrix(void) { return movement_matrix_; }
             inline std::vector<GameObject*> GetChildren(void) { return children_; }
             inline std::vector<GameObject*> GetBullet(void) { return bullet_; }
+            inline std::vector<GameObject*> GetArrow(void) { return arrow_; }
             inline std::vector<GameObject*> GetShields(void) { return shields_; }
 
             // Setters
@@ -69,9 +71,11 @@ namespace game {
             inline void SetChildren(std::vector<GameObject*> children) { children_ = children; }
             inline void AddChild(GameObject* child) { children_.push_back(child); }
             inline void AddBullet(GameObject* bullet) { bullet_.push_back(bullet); }
+            inline void AddArrow(GameObject* arrow) { arrow_.push_back(arrow); }
             inline void AddShield(GameObject* shield) { shields_.push_back(shield); }
 
             inline void DeleteBullet() { bullet_.clear(); }
+            inline void DeleteArrow() { arrow_.clear(); }
             inline void RemoveShields() { shields_.clear(); }
 
 
@@ -89,6 +93,7 @@ namespace game {
             glm::mat4 movement_matrix_;
             std::vector<GameObject*> children_;
             std::vector<GameObject*> bullet_;
+            std::vector<GameObject*> arrow_;
             std::vector<GameObject*> shields_;
 
             // Object's details
